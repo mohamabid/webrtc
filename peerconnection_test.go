@@ -8,6 +8,58 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func signalPair(pcOffer *PeerConnection, pcAnswer *PeerConnection) error {
+	offer, err := pcOffer.CreateOffer(nil)
+	if err != nil {
+		return err
+	}
+
+	if err = pcOffer.SetLocalDescription(offer); err != nil {
+		return err
+	}
+
+	err = pcAnswer.SetRemoteDescription(offer)
+	if err != nil {
+		return err
+	}
+
+	answer, err := pcAnswer.CreateAnswer(nil)
+	if err != nil {
+		return err
+	}
+
+	if err = pcAnswer.SetLocalDescription(answer); err != nil {
+		return err
+	}
+
+	err = pcOffer.SetRemoteDescription(answer)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func TestNew(t *testing.T) {
+	pc, err := NewPeerConnection(Configuration{
+		ICEServers: []ICEServer{
+			{
+				URLs: []string{
+					"stun:stun.l.google.com:19302",
+				},
+				Username: "unittest",
+			},
+		},
+		ICETransportPolicy:   ICETransportPolicyRelay,
+		BundlePolicy:         BundlePolicyMaxCompat,
+		RTCPMuxPolicy:        RTCPMuxPolicyNegotiate,
+		PeerIdentity:         "unittest",
+		ICECandidatePoolSize: 5,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, pc)
+}
+
 func TestPeerConnection_SetConfiguration(t *testing.T) {
 	// Note: These tests don't include ICEServer.Credential,
 	// ICEServer.CredentialType, or Certificates because those are not supported
@@ -148,6 +200,67 @@ func TestPeerConnection_SetConfiguration(t *testing.T) {
 		err = pc.SetConfiguration(test.config)
 		if got, want := err, test.wantErr; !reflect.DeepEqual(got, want) {
 			t.Errorf("SetConfiguration %q: err = %v, want %v", test.name, got, want)
+		}
+	}
+}
+
+func TestPeerConnection_GetConfiguration(t *testing.T) {
+	pc, err := NewPeerConnection(Configuration{})
+	assert.NoError(t, err)
+
+	expected := Configuration{
+		ICEServers:           []ICEServer{},
+		ICETransportPolicy:   ICETransportPolicyAll,
+		BundlePolicy:         BundlePolicyBalanced,
+		RTCPMuxPolicy:        RTCPMuxPolicyRequire,
+		Certificates:         []Certificate{},
+		ICECandidatePoolSize: 0,
+	}
+	actual := pc.GetConfiguration()
+	assert.True(t, &expected != &actual)
+	assert.Equal(t, expected.ICEServers, actual.ICEServers)
+	assert.Equal(t, expected.ICETransportPolicy, actual.ICETransportPolicy)
+	assert.Equal(t, expected.BundlePolicy, actual.BundlePolicy)
+	assert.Equal(t, expected.RTCPMuxPolicy, actual.RTCPMuxPolicy)
+	assert.Equal(t, len(expected.Certificates), len(actual.Certificates))
+	assert.Equal(t, expected.ICECandidatePoolSize, actual.ICECandidatePoolSize)
+}
+
+const minimalOffer = `v=0
+o=- 4596489990601351948 2 IN IP4 127.0.0.1
+s=-
+t=0 0
+a=msid-semantic: WMS
+m=application 47299 DTLS/SCTP 5000
+c=IN IP4 192.168.20.129
+a=candidate:1966762134 1 udp 2122260223 192.168.20.129 47299 typ host generation 0
+a=candidate:211962667 1 udp 2122194687 10.0.3.1 40864 typ host generation 0
+a=candidate:1002017894 1 tcp 1518280447 192.168.20.129 0 typ host tcptype active generation 0
+a=candidate:1109506011 1 tcp 1518214911 10.0.3.1 0 typ host tcptype active generation 0
+a=ice-ufrag:1/MvHwjAyVf27aLu
+a=ice-pwd:3dBU7cFOBl120v33cynDvN1E
+a=ice-options:google-ice
+a=fingerprint:sha-256 75:74:5A:A6:A4:E5:52:F4:A7:67:4C:01:C7:EE:91:3F:21:3D:A2:E3:53:7B:6F:30:86:F2:30:AA:65:FB:04:24
+a=setup:actpass
+a=mid:data
+a=sctpmap:5000 webrtc-datachannel 1024
+`
+
+func TestSetRemoteDescription(t *testing.T) {
+	testCases := []struct {
+		desc SessionDescription
+	}{
+		{SessionDescription{Type: SDPTypeOffer, SDP: minimalOffer}},
+	}
+
+	for i, testCase := range testCases {
+		peerConn, err := NewPeerConnection(Configuration{})
+		if err != nil {
+			t.Errorf("Case %d: got error: %v", i, err)
+		}
+		err = peerConn.SetRemoteDescription(testCase.desc)
+		if err != nil {
+			t.Errorf("Case %d: got error: %v", i, err)
 		}
 	}
 }

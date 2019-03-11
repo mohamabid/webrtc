@@ -440,7 +440,7 @@ func valueToConfiguration(configValue js.Value) Configuration {
 		ICEServers:           valueToICEServers(configValue.Get("iceServers")),
 		ICETransportPolicy:   newICETransportPolicy(valueToStringOrZero(configValue.Get("iceTransportPolicy"))),
 		BundlePolicy:         newBundlePolicy(valueToStringOrZero(configValue.Get("bundlePolicy"))),
-		RTCPMuxPolicy:        newRTCPMuxPolicy(valueToStringOrZero(configValue.Get("bundlePolicy"))),
+		RTCPMuxPolicy:        newRTCPMuxPolicy(valueToStringOrZero(configValue.Get("rtcpMuxPolicy"))),
 		PeerIdentity:         valueToStringOrZero(configValue.Get("peerIdentity")),
 		ICECandidatePoolSize: valueToUint8OrZero(configValue.Get("iceCandidatePoolSize")),
 
