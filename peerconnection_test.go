@@ -2,43 +2,13 @@ package webrtc
 
 import (
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/pions/webrtc/pkg/rtcerr"
 	"github.com/stretchr/testify/assert"
 )
-
-func signalPair(pcOffer *PeerConnection, pcAnswer *PeerConnection) error {
-	offer, err := pcOffer.CreateOffer(nil)
-	if err != nil {
-		return err
-	}
-
-	if err = pcOffer.SetLocalDescription(offer); err != nil {
-		return err
-	}
-
-	err = pcAnswer.SetRemoteDescription(offer)
-	if err != nil {
-		return err
-	}
-
-	answer, err := pcAnswer.CreateAnswer(nil)
-	if err != nil {
-		return err
-	}
-
-	if err = pcAnswer.SetLocalDescription(answer); err != nil {
-		return err
-	}
-
-	err = pcOffer.SetRemoteDescription(answer)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func TestNew(t *testing.T) {
 	pc, err := NewPeerConnection(Configuration{
@@ -262,5 +232,103 @@ func TestSetRemoteDescription(t *testing.T) {
 		if err != nil {
 			t.Errorf("Case %d: got error: %v", i, err)
 		}
+	}
+}
+
+func TestCreateOfferAnswer(t *testing.T) {
+	offerPeerConn, err := NewPeerConnection(Configuration{})
+	if err != nil {
+		t.Errorf("New PeerConnection: got error: %v", err)
+	}
+	offer, err := offerPeerConn.CreateOffer(nil)
+	if err != nil {
+		t.Errorf("Create Offer: got error: %v", err)
+	}
+	if err = offerPeerConn.SetLocalDescription(offer); err != nil {
+		t.Errorf("SetLocalDescription: got error: %v", err)
+	}
+	answerPeerConn, err := NewPeerConnection(Configuration{})
+	if err != nil {
+		t.Errorf("New PeerConnection: got error: %v", err)
+	}
+	err = answerPeerConn.SetRemoteDescription(offer)
+	if err != nil {
+		t.Errorf("SetRemoteDescription: got error: %v", err)
+	}
+	answer, err := answerPeerConn.CreateAnswer(nil)
+	if err != nil {
+		t.Errorf("Create Answer: got error: %v", err)
+	}
+	if err = answerPeerConn.SetLocalDescription(answer); err != nil {
+		t.Errorf("SetLocalDescription: got error: %v", err)
+	}
+	err = offerPeerConn.SetRemoteDescription(answer)
+	if err != nil {
+		t.Errorf("SetRemoteDescription (Originator): got error: %v", err)
+	}
+}
+
+func TestPeerConnection_EventHandlers(t *testing.T) {
+	pcOffer, err := NewPeerConnection(Configuration{})
+	assert.NoError(t, err)
+	pcAnswer, err := NewPeerConnection(Configuration{})
+	assert.NoError(t, err)
+
+	// wasCalled is a list of event handlers that were called.
+	wasCalled := []string{}
+	// wg is used to wait for all event handlers to be called.
+	wg := &sync.WaitGroup{}
+	wg.Add(4)
+
+	// Each sync.Once is used to ensure that we call wg.Done once for each event
+	// handler and don't add multiple entries to wasCalled. The event handlers can
+	// be called more than once in some cases.
+	onceOffererOnICEConnectionStateChange := &sync.Once{}
+	onceOffererOnSignalingStateChange := &sync.Once{}
+	onceAnswererOnICEConnectionStateChange := &sync.Once{}
+	onceAnswererOnSignalingStateChange := &sync.Once{}
+
+	// Register all the event handlers.
+	pcOffer.OnICEConnectionStateChange(func(ICEConnectionState) {
+		onceOffererOnICEConnectionStateChange.Do(func() {
+			wasCalled = append(wasCalled, "offerer OnICEConnectionStateChange")
+			wg.Done()
+		})
+	})
+	pcOffer.OnSignalingStateChange(func(SignalingState) {
+		onceOffererOnSignalingStateChange.Do(func() {
+			wasCalled = append(wasCalled, "offerer OnSignalingStateChange")
+			wg.Done()
+		})
+	})
+	pcAnswer.OnICEConnectionStateChange(func(ICEConnectionState) {
+		onceAnswererOnICEConnectionStateChange.Do(func() {
+			wasCalled = append(wasCalled, "answerer OnICEConnectionStateChange")
+			wg.Done()
+		})
+	})
+	pcAnswer.OnSignalingStateChange(func(SignalingState) {
+		onceAnswererOnSignalingStateChange.Do(func() {
+			wasCalled = append(wasCalled, "answerer OnSignalingStateChange")
+			wg.Done()
+		})
+	})
+
+	// Use signalPair to establish a connection between pcOffer and pcAnswer. This
+	// process shoudl trigger the above event handlers.
+	assert.NoError(t, signalPair(pcOffer, pcAnswer))
+
+	// Wait for all of the event handlers to be triggered.
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		done <- struct{}{}
+	}()
+	timeout := time.After(5 * time.Second)
+	select {
+	case <-done:
+		break
+	case <-timeout:
+		t.Fatalf("timed out waiting for one or more events handlers to be called (these *were* called: %+v)", wasCalled)
 	}
 }

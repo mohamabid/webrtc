@@ -33,6 +33,38 @@ func (api *API) newPair() (pcOffer *PeerConnection, pcAnswer *PeerConnection, er
 	return pca, pcb, nil
 }
 
+func signalPair(pcOffer *PeerConnection, pcAnswer *PeerConnection) error {
+	offer, err := pcOffer.CreateOffer(nil)
+	if err != nil {
+		return err
+	}
+
+	if err = pcOffer.SetLocalDescription(offer); err != nil {
+		return err
+	}
+
+	err = pcAnswer.SetRemoteDescription(offer)
+	if err != nil {
+		return err
+	}
+
+	answer, err := pcAnswer.CreateAnswer(nil)
+	if err != nil {
+		return err
+	}
+
+	if err = pcAnswer.SetLocalDescription(answer); err != nil {
+		return err
+	}
+
+	err = pcOffer.SetRemoteDescription(answer)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func TestNew_Go(t *testing.T) {
 	api := NewAPI()
 	t.Run("Success", func(t *testing.T) {
@@ -224,41 +256,10 @@ func TestPeerConnection_SetConfiguration_Go(t *testing.T) {
 // 	assert.Nil(t, err)
 // }
 
-func TestCreateOfferAnswer(t *testing.T) {
-	api := NewAPI()
-	offerPeerConn, err := api.NewPeerConnection(Configuration{})
-	if err != nil {
-		t.Errorf("New PeerConnection: got error: %v", err)
-	}
-	offer, err := offerPeerConn.CreateOffer(nil)
-	if err != nil {
-		t.Errorf("Create Offer: got error: %v", err)
-	}
-	if err = offerPeerConn.SetLocalDescription(offer); err != nil {
-		t.Errorf("SetLocalDescription: got error: %v", err)
-	}
-	answerPeerConn, err := api.NewPeerConnection(Configuration{})
-	if err != nil {
-		t.Errorf("New PeerConnection: got error: %v", err)
-	}
-	err = answerPeerConn.SetRemoteDescription(offer)
-	if err != nil {
-		t.Errorf("SetRemoteDescription: got error: %v", err)
-	}
-	answer, err := answerPeerConn.CreateAnswer(nil)
-	if err != nil {
-		t.Errorf("Create Answer: got error: %v", err)
-	}
-	if err = answerPeerConn.SetLocalDescription(answer); err != nil {
-		t.Errorf("SetLocalDescription: got error: %v", err)
-	}
-	err = offerPeerConn.SetRemoteDescription(answer)
-	if err != nil {
-		t.Errorf("SetRemoteDescription (Originator): got error: %v", err)
-	}
-}
-
-func TestPeerConnection_EventHandlers(t *testing.T) {
+func TestPeerConnection_EventHandlers_Go(t *testing.T) {
+	// Note: When testing the Go event handlers we peer into the state a bit more
+	// than what is possible for the environment agnostic (Go or WASM/JavaScript)
+	// EventHandlers test.
 	api := NewAPI()
 	pc, err := api.NewPeerConnection(Configuration{})
 	assert.Nil(t, err)
