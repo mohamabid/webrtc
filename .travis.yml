@@ -12,6 +12,15 @@ notifications:
     secure: IYjXoe03KykZ3v4GgUwGzfWRepO5DnJdxB87lSQ2IMsF6PBFSc3CaOX3GUclHIlzTdchR+PHj1jtEZZVSkgfp9amZBCcqbJTBOPG1YA6hxOvTpgeWIttMH0cmMxSCuCa4RfkuRH2+UXbjREMJ3ENau2CTMKReyW4Jddh9dREZohVmYuqN6uuBqCndYpt3Lm1Hv+T+vqxwTDdE/q0hwGMiwgvQm7N3K397e1q1mg+o4tMGwqyUIPnEPjaSKcEuOBa8Rqyl96nn+HGZK0zvNqUOxlzeRMM0VBcxe2s+zY/SuLj4OwNl1zEmIfY6Qj70t2cmT3xJvJprB4pCwR7q78b4lfpNu6rqCJPIZG/qDFT+XSuhDCmLlCO/+Uhtu11pgjV8UMNLTKJth+7hurH7oLNb7jYk9VYsiKhs41LICyDjJNzS5yPatF5xj0HOujb6Uh/pfI+9a+IpPSeXv1gBo8H3oWa6TfRhuTUS3Jc48p/jriZmgWgbKa1HKTaY9ENvAdZFfxJdrRg3Y4SKnjZcAPw7ijRIx1oaM3rHYbOTm/dj4ggho7EgTO3k8toQ5PKohrbBG5RERqHJvC47SXDt0fEjeGnAfN7Xtj0Pq8YyaFIj7CmCCGoI//2sWkK3AmjnwIuW0hUMsL3GsED+p0lsu6FX9wysJwy2Z2mTfIX/CXmB6w=
 
 before_install:
+  # Temporary hack to workaround TravisCI/gimme issue
+  - wget -O go.tar.gz https://dl.google.com/go/go1.12.linux-amd64.tar.gz
+  - mkdir ~/gocode
+  - tar -C ~/gocode -xzf go.tar.gz
+  - rm go.tar.gz
+  - export GOROOT=~/gocode/go
+  - export PATH=$GOROOT/bin:$PATH
+  - go env
+  # End temporary hack
   - sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
   - wget https://raw.githubusercontent.com/creationix/nvm/v0.31.0/nvm.sh -O ~/.nvm/nvm.sh
   - source ~/.nvm/nvm.sh
