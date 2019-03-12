@@ -313,7 +313,7 @@ func TestPeerConnection_EventHandlers(t *testing.T) {
 	})
 
 	// Use signalPair to establish a connection between pcOffer and pcAnswer. This
-	// process shoudl trigger the above event handlers.
+	// process should trigger the above event handlers.
 	assert.NoError(t, signalPair(pcOffer, pcAnswer))
 
 	// Wait for all of the event handlers to be triggered.
