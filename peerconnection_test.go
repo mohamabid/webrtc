@@ -274,6 +274,7 @@ func TestPeerConnection_EventHandlers(t *testing.T) {
 
 	// wasCalled is a list of event handlers that were called.
 	wasCalled := []string{}
+	wasCalledMut := &sync.Mutex{}
 	// wg is used to wait for all event handlers to be called.
 	wg := &sync.WaitGroup{}
 	wg.Add(4)
@@ -289,24 +290,32 @@ func TestPeerConnection_EventHandlers(t *testing.T) {
 	// Register all the event handlers.
 	pcOffer.OnICEConnectionStateChange(func(ICEConnectionState) {
 		onceOffererOnICEConnectionStateChange.Do(func() {
+			wasCalledMut.Lock()
+			defer wasCalledMut.Unlock()
 			wasCalled = append(wasCalled, "offerer OnICEConnectionStateChange")
 			wg.Done()
 		})
 	})
 	pcOffer.OnSignalingStateChange(func(SignalingState) {
 		onceOffererOnSignalingStateChange.Do(func() {
+			wasCalledMut.Lock()
+			defer wasCalledMut.Unlock()
 			wasCalled = append(wasCalled, "offerer OnSignalingStateChange")
 			wg.Done()
 		})
 	})
 	pcAnswer.OnICEConnectionStateChange(func(ICEConnectionState) {
 		onceAnswererOnICEConnectionStateChange.Do(func() {
+			wasCalledMut.Lock()
+			defer wasCalledMut.Unlock()
 			wasCalled = append(wasCalled, "answerer OnICEConnectionStateChange")
 			wg.Done()
 		})
 	})
 	pcAnswer.OnSignalingStateChange(func(SignalingState) {
 		onceAnswererOnSignalingStateChange.Do(func() {
+			wasCalledMut.Lock()
+			defer wasCalledMut.Unlock()
 			wasCalled = append(wasCalled, "answerer OnSignalingStateChange")
 			wg.Done()
 		})
