@@ -45,7 +45,6 @@ func TestPeerConnection_SetConfiguration(t *testing.T) {
 			name: "valid",
 			init: func() (*PeerConnection, error) {
 				pc, err := NewPeerConnection(Configuration{
-					PeerIdentity:         "unittest",
 					ICECandidatePoolSize: 5,
 				})
 				if err != nil {
@@ -64,7 +63,6 @@ func TestPeerConnection_SetConfiguration(t *testing.T) {
 					ICETransportPolicy:   ICETransportPolicyAll,
 					BundlePolicy:         BundlePolicyBalanced,
 					RTCPMuxPolicy:        RTCPMuxPolicyRequire,
-					PeerIdentity:         "unittest",
 					ICECandidatePoolSize: 5,
 				})
 				if err != nil {

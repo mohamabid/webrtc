@@ -5,6 +5,8 @@ package webrtc
 
 import (
 	"syscall/js"
+
+	"github.com/pions/webrtc/pkg/rtcerr"
 )
 
 // PeerConnection represents a WebRTC connection that establishes a
@@ -99,6 +101,69 @@ func (pc *PeerConnection) OnICEConnectionStateChange(f func(ICEConnectionState))
 	pc.underlying.Set("oniceconnectionstatechange", onICEConectionStateChangeHandler)
 }
 
+func (pc *PeerConnection) checkConfiguration(configuration Configuration) error {
+	// https://www.w3.org/TR/webrtc/#dom-rtcpeerconnection-setconfiguration (step #2)
+	if pc.ConnectionState() == PeerConnectionStateClosed {
+		return &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
+	}
+
+	existingConfig := pc.GetConfiguration()
+	// https://www.w3.org/TR/webrtc/#set-the-configuration (step #3)
+	if configuration.PeerIdentity != "" {
+		if configuration.PeerIdentity != existingConfig.PeerIdentity {
+			return &rtcerr.InvalidModificationError{Err: ErrModifyingPeerIdentity}
+		}
+	}
+
+	// TODO: Enable these checks once Certificates are supported.
+	// https://www.w3.org/TR/webrtc/#set-the-configuration (step #4)
+	// if len(configuration.Certificates) > 0 {
+	// 	if len(configuration.Certificates) != len(existingConfiguration.Certificates) {
+	// 		return &rtcerr.InvalidModificationError{Err: ErrModifyingCertificates}
+	// 	}
+
+	// 	for i, certificate := range configuration.Certificates {
+	// 		if !pc.configuration.Certificates[i].Equals(certificate) {
+	// 			return &rtcerr.InvalidModificationError{Err: ErrModifyingCertificates}
+	// 		}
+	// 	}
+	// 	pc.configuration.Certificates = configuration.Certificates
+	// }
+
+	// https://www.w3.org/TR/webrtc/#set-the-configuration (step #5)
+	if configuration.BundlePolicy != BundlePolicy(Unknown) {
+		if configuration.BundlePolicy != existingConfig.BundlePolicy {
+			return &rtcerr.InvalidModificationError{Err: ErrModifyingBundlePolicy}
+		}
+	}
+
+	// https://www.w3.org/TR/webrtc/#set-the-configuration (step #6)
+	if configuration.RTCPMuxPolicy != RTCPMuxPolicy(Unknown) {
+		if configuration.RTCPMuxPolicy != existingConfig.RTCPMuxPolicy {
+			return &rtcerr.InvalidModificationError{Err: ErrModifyingRTCPMuxPolicy}
+		}
+	}
+
+	// https://www.w3.org/TR/webrtc/#set-the-configuration (step #7)
+	if configuration.ICECandidatePoolSize != 0 {
+		if configuration.ICECandidatePoolSize != existingConfig.ICECandidatePoolSize &&
+			pc.LocalDescription() != nil {
+			return &rtcerr.InvalidModificationError{Err: ErrModifyingICECandidatePoolSize}
+		}
+	}
+
+	// https://www.w3.org/TR/webrtc/#set-the-configuration (step #11)
+	if len(configuration.ICEServers) > 0 {
+		// https://www.w3.org/TR/webrtc/#set-the-configuration (step #11.3)
+		for _, server := range configuration.ICEServers {
+			if _, err := server.validate(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // SetConfiguration updates the configuration of this PeerConnection object.
 func (pc *PeerConnection) SetConfiguration(configuration Configuration) (err error) {
 	defer func() {
@@ -109,6 +174,9 @@ func (pc *PeerConnection) SetConfiguration(configuration Configuration) (err err
 			err = recoveryToError(e)
 		}
 	}()
+	if err := pc.checkConfiguration(configuration); err != nil {
+		return err
+	}
 	configMap := configurationToValue(configuration)
 	pc.underlying.Call("setConfiguration", configMap)
 	return nil
