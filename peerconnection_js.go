@@ -168,9 +168,6 @@ func (pc *PeerConnection) checkConfiguration(configuration Configuration) error 
 func (pc *PeerConnection) SetConfiguration(configuration Configuration) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			// TODO(albrow): Convert JavaScript errors to the correct
-			// pions/webrtc errors to match the Go implementation as closely as
-			// possible.
 			err = recoveryToError(e)
 		}
 	}()

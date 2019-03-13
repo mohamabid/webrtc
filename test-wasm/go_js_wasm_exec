@@ -2,6 +2,7 @@
 # Copyright 2018 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# Modified work copyright 2019 Alex Browne.
 
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ]; do
@@ -11,4 +12,5 @@ while [ -h "$SOURCE" ]; do
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-exec node --require=./node_shim.js "$(go env GOROOT)/misc/wasm/wasm_exec.js" "$@"
+# We changed this line to require our node_shim.js.
+exec node --require=./test-wasm/node_shim.js "$(go env GOROOT)/misc/wasm/wasm_exec.js" "$@"
